@@ -1,4 +1,4 @@
-import re
+
 # You are working as a data analyst for a marketing company. You have been given a large text document containing customer reviews and feedback. Your task is to extract all email addresses and phone numbers from this document for further analysis.
 
 # Task:
@@ -11,9 +11,7 @@ import re
 
 # Requirements:
 # Use regular expressions to find the email addresses and phone numbers.
-# Ensure that the extracted data is saved in separate files, one for emails and one for phone numbers.
-
-from file_reader import read_data
+# Ensure that the extracted data is saved in separate files, one for emails and one for phone numbers
 
 
 

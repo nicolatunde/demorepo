@@ -8,4 +8,5 @@ print('The list of names are: ', list_of_names)
 
 users = web_fetcher.fetch_user_data()
 
+
 print('List of users: ', users)
