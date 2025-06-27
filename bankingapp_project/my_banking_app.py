@@ -81,7 +81,7 @@ def create_account():
             conn.commit()
             if user is None:
                 break
-            print(f"{user_name} user already exist would you like to login?")
+            print(f"{user_name} user already exist enter another username")
             continue
         print("please enter a another username")
         continue
@@ -102,11 +102,11 @@ def create_account():
         conn.commit()
         if user_check is None:
             break
-        print("email already exist")
+        print("email already exist enter another email")
 
     while True:
-        print("lenght of password not less than 8 with Upper case,lower case,number,and special character.")
-        password = getpass("Enter a secure password :").strip()
+        print("create password below lenght of password not less than 8 with Upper case,lower case,number,and special character.")
+        password = getpass("create a secure password: ").strip()
         pattern = r'^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^a-zA-Z0-9])[\s\S]{6,12}$'
         match = re.match(pattern, password)
         if not match:
@@ -114,6 +114,7 @@ def create_account():
             continue
         confirm_password = getpass("confirm your password :").strip()
         if confirm_password != password:
+            print("password doesnt match")
             continue
         break
     hashed_password = hashlib.sha256(password.encode()).hexdigest()
@@ -121,17 +122,18 @@ def create_account():
            
     while True:
         try:
-            account_balance = float(input("enter your initial deposit #2000.00 minimum: #"))
-            if account_balance < 2000:
-                print("opps the lowest initial deposit is #2000.00 re-enter")
-                continue
-            break
+            initial_deposite = float(input("enter your initial deposit #2000.00 minimum: #"))
         except ValueError as e:
-            print("enter a valid balance ")
+            print("enter a valid input")
             continue
         except Exception:
             print("invalid input")
+            continue    
+        if initial_deposite < 2000:
+            print("opps the lowest initial deposit is #2000.00 re-enter")
             continue
+        break
+      
 
 
     while True:
@@ -147,53 +149,70 @@ def create_account():
     try:
         cursor.execute('''
             INSERT INTO users ('full_name', 'username', 'email', 'password', 'account_balance', 'account_number') values (?, ?, ?, ?, ?, ?)
-        ''',(full_name, user_name, email, hashed_password, account_balance, account_number))
+        ''',(full_name, user_name, email, hashed_password, initial_deposite, account_number))
+        conn.commit() 
+
+        user_id = cursor.execute("SELECT id, full_name FROM users WHERE username = ?",(user_name,)).fetchone()
         conn.commit()
+        id,name = user_id
+        cursor.execute('''INSERT  INTO transactions ('balance', 'amount', 'type', 'user_id') VALUES (?, ?, ?, ?) ''',(initial_deposite, initial_deposite, 'initial deposite', id,))
+        conn.commit()
+
     except sqlite3.IntegrityError as e:
         print(e)
-
+    except Exception as a:
+        print(a)
+ 
     loading("creating account")
+
 
     print(f'''congratulation {first_name} account successfully created
           Account Name:  {full_name}
           Account number: {account_number}
           email: {email}
-          current balance: #{account_balance}
+          current balance: #{initial_deposite}
           ''')
     loading("redirecting to login page")
     login()
     
+    
 
 
 def login():
-    print("*****Enter your details to login*******")
-    while True:
+    counter = 3
+    while counter > 0:
+        if counter <= 2:
+            print("you have ",counter,"attempt left")  
+        print("*****Enter your details to login*******")
         while True:
-            user_name_or_password = input("Enter your username: ").strip()
-            if not user_name_or_password:
+            user_name = input("Enter your username: ").strip()
+            if not user_name:
                 ("field cannot be left empty")
                 continue
             break
         while True:
-            password = getpass("Enter your password: ").strip()
+            password = (input("Enter your password: ").strip())
             if not password:
                 ("field cannot be left empty")
                 continue
             break
-        user = cursor.execute('SELECT id, full_name FROM users where username = ? or email = ? and password = ?',(user_name_or_password, user_name_or_password, password,)).fetchone()
+        hashed_password = hashlib.sha256(password.encode()).hexdigest()
+        user = cursor.execute('SELECT id, full_name FROM users WHERE username = ? and password = ?', (user_name, (hashed_password),)).fetchone()
+    
         if user is None:
             print("wrong password or username")
+            counter -= 1
             continue
-        id,name = user
-        print("login successful")
-        break
-    loading("loading your dashboard please wait")
-    dashboard(id,name)    
+        else:
+            id, name = user
+            print("login successful")
+            loading("loading your dashboard please wait")
+            dashboard(id,name)
+            break 
 
 
 
 def dashboard(id,name,):
-    while True:
         print(f"HLLO Mr {name}!!!!!!!!! Wellcome to your dashboard")
         menu = f'''
         which operation would like to perform choose option bellow 
@@ -203,32 +222,66 @@ def dashboard(id,name,):
         4. Balance Enquiries
         5. View Account details
         6. view your transaction history
+        7. sign-out
         '''
         while True:
             print(menu)
-            response = input("Enter your response 1 to 6: ")
+            response = input("Enter your response 1 to 7: ")
+
             if response == "1":
                 deposit(id,name)
+
             elif response == "2":
                 withdwawal(id,name)
+
             elif response == "3":
                 tranfer_out(id)
+
             elif response == "4":
                 balance_enquiry(id,name)
 
+            elif response == "5":
+                view_acc_details(id)
 
+            elif response == "6":
+                transactions(id)
+
+            elif response == "7":
+                loading("signing out")
+                break
+            else:
+                print("please enter valid option as shown above")
+                continue
+
+
+
+def view_acc_details(id):
+    name, acc_number, account_balance, = cursor.execute('SELECT full_name, account_number, account_balance FROM users WHERE id = ?', (id,)).fetchone()
+    conn.commit
+    loading("\n Getting account details")
+    print(f"\n\n ACCOUNT NAME: {name} \n ACCOUNT NUMBER: {acc_number} \n ACCOUNT BALANCE: {account_balance}")
 
 
 
 def balance_enquiry(id,name):
     balance = get_balance(id)
-    print(f"Mr {name},your current balance is #{balance}")
-    
+    loading('getting your balance pls wait')
+    print(f"\n Mr {name},your current balance is #{balance}")
+
+
 
 def deposit(id,name):
     while True:
         while True:
-            deposite_amount = int(input("How much do you want to deposite: #"))
+            try:
+                 deposite_amount = int(input("How much do you want to deposite: #"))
+            except ValueError:
+                print("invalid input")
+                continue
+            except Exception as e:
+                print("invalid input",e)
+                continue
+
             if not deposite_amount:
                 print("field cannot be left empty")
                 continue
@@ -237,19 +290,12 @@ def deposit(id,name):
                 print("invalid amount you cant enter a negative value")
                 continue
 
-            try:
-                deposite_amount = int(deposite_amount)
-                break
-            except:
-                print("opps!!! enter a valid amount")
-                continue
-
+            break
+    
         balance = get_balance(id)
-        print(balance)
-        print(deposite_amount)
         updated_balance = balance + deposite_amount
         update_balance(updated_balance,id)
-        cursor.execute("INSERT INTO transactions (amount, type, user_id,balance) VALUES (?, ?, ?, ?)", (deposite_amount, "deposit", id,updated_balance,))
+        cursor.execute("INSERT INTO transactions (amount, type, user_id, balance) VALUES (?, ?, ?, ?)", (deposite_amount, "deposit", id, updated_balance,))
         conn.commit()
         loading("processing your deposite")
         print(f"mr {name}, #{deposite_amount} was succesfully added to your account")
@@ -257,10 +303,10 @@ def deposit(id,name):
         if option == "yes":
             continue
         elif option == "no":
+            loading("Returing to dashboard")
             break
         else:
-            print("invalid response returning to menu......")
-            sleep(2)
+            loading("invalid response returning to menu")
             break
 
     
@@ -276,6 +322,7 @@ def get_balance(id):
      balance, id = get_balance
      return balance
 
+
 def withdwawal(id,name):
     while True:
         current_balance = get_balance(id)
@@ -288,7 +335,7 @@ def withdwawal(id,name):
 
             try:
                 enter_witdrawal_amount = input("Enter the amount you wish to withdraw: ")
-                enter_witdrawal_amount = int(enter_witdrawal_amount)
+                enter_witdrawal_amount = float(enter_witdrawal_amount)
             except ValueError as e:
                 print("enter a valid amount")
                 continue
@@ -296,8 +343,8 @@ def withdwawal(id,name):
             except Exception as e:
                 print("An error occured",e)
                 continue
-            if enter_witdrawal_amount <= 0:
-                print("opps invalid input enter a positive number")
+            if enter_witdrawal_amount <= 100:
+                print("transaction failed minimum withdrawal is #100")
                 continue
 
             if enter_witdrawal_amount > current_balance:
@@ -305,23 +352,53 @@ def withdwawal(id,name):
                 continue
             
     
-            print("yooo i got hereeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee")
+            enter_witdrawal_amount = enter_witdrawal_amount + 50
+
             current_balance = current_balance - enter_witdrawal_amount
             update_balance(current_balance,id)
             cursor.execute("INSERT INTO transactions (amount, type, user_id, balance) VALUES (?, ?, ?, ?)", (enter_witdrawal_amount, "withdrawal", id,current_balance,))
             conn.commit()
-
+            
             loading("processing your transaction please wait")
 
             print(f"#{enter_witdrawal_amount} was withdrawn from your account")
             break
+
         break
         
+def transactions(id):
 
+    all_transactions = cursor.execute("SELECT * from transactions where user_id = ?",(id,)).fetchall()
+    conn.commit()
+
+    loading("Generating transaction history")
+
+    num = 1
+
+    for transaction in all_transactions:
+       
+        idd, date, amount, transaction_type, sender, balance, reciever, key, narration = transaction
+        if sender is None and reciever is None:
+            print(f"\n{num}. Date: {date}  Amount: #{amount}  Type: {transaction_type}  Balance: #{balance}")
+
+
+        elif reciever is None:
+            print(f"\n{num}. Date: {date}  Amount: #{amount}  Type: {transaction_type}  Sender name: {sender}     Description: {narration}  balance: #{balance}")
+
+
+        elif sender is None:
+            print(f"\n{num}. Date: {date}  Amount: #{amount}  Type: {transaction_type}  Receiver name: {reciever}  Description: {narration}  balance: #{balance}")
+
+        num += 1
+
+       
+            
+    
 
 def update_balance(balance,id):
     cursor.execute("UPDATE users SET account_balance = ? where id = ?",(balance,id,))
     conn.commit()
+
 
 def return_back(text):
         text = "returning back to menu"
@@ -331,21 +408,31 @@ def return_back(text):
             print(".", end='', flush=True)
         print()
 
+
 def loading(text):
     print(text, end='')
     for _ in range(12):
         sleep(0.3)
         print(".", end='', flush=True)
     print()
+ 
 
 def tranfer_out(id):
     while True:
         account_of_receiver = input("enter the account number of the person you want to transfer to: ")
         pattern = r"^\d+$"
         match = re.match(pattern,account_of_receiver)
+
         if not match:
             print("enter a valid input")
             continue
+        sender_account, = cursor.execute('SELECT account_number FROM users where id = ?',(id,)).fetchone()
+        if sender_account == account_of_receiver:
+            print("oppss you cant tranfer to yourself enter another account number")
+            continue
+        print('*****************',sender_account,account_of_receiver)
+
+        conn.commit()
         account_checker = cursor.execute('SELECT full_name, id FROM users where account_number = ?',(account_of_receiver,)).fetchone()
         conn.commit()
         if account_checker is None:
@@ -357,6 +444,7 @@ def tranfer_out(id):
     print(f"receiver account name: {receiver_name}")
 
     while True:
+        
         while True:
             try:
                 amount_sending = float(input("enter the amount you want to send: "))
@@ -463,14 +551,20 @@ while True:
     2.login if u already have an account
 
     3.exit
+
     4.Data policy 
     """
     print(menu)
     option = input("enter your choice 1 to 4: ")
     if option == "1":
         create_account()
-        print("yo")
     elif option == "2":
         login()
+    elif option == "3":
+        loading("Exiting site")
+        break
+    else:
+        print("invalid input check options ")
+        continue
 
 
